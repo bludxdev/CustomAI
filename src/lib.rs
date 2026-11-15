@@ -124,7 +124,7 @@ fn themes(cfg: &mut Config, ui: &AppWindow) {
     };
     ui.set_bg(parse_color(bg)); ui.set_panel(parse_color(panel)); ui.set_panel_2(parse_color(p2)); ui.set_ink(parse_color(ink)); ui.set_muted(parse_color(muted)); ui.set_accent(parse_color(accent)); ui.set_border(parse_color(border));
 }
-fn row_model<T: slint::Model + Clone + 'static>(items: Vec<T>) -> ModelRc<T> { ModelRc::new(VecModel::from(items)) }
+fn row_model<T: Clone + 'static>(items: Vec<T>) -> ModelRc<T> { ModelRc::from(items) }
 fn refresh(ui: &AppWindow, data: &Saved, active: usize) {
     let chats: Vec<ChatRow> = data.chats.iter().enumerate().rev().filter(|(_,c)| !c.messages.is_empty()).map(|(i,c)| ChatRow { id: i.to_string().into(), title: c.title.clone().into(), selected: i == active }).collect();
     ui.set_chats(row_model(chats));
@@ -159,9 +159,10 @@ fn launch_send(ui: AppWindow, state: Rc<RefCell<Saved>>, active: Rc<RefCell<usiz
         let mut response=match request.json(&body).send() {Ok(r)=>r,Err(e)=>{report(&ui_weak,&state2,&active2,idx,format!("Не удалось подключиться: {e}"));return;} };
         let status=response.status(); if !status.is_success() { let text=response.text().unwrap_or_default(); report(&ui_weak,&state2,&active2,idx,explain(status.as_u16(),&text));return; }
         let mut full=String::new(); let mut pending=String::new(); let provider=cfg.provider.clone();
-        while let Ok(Some(chunk_bytes)) = response.chunk() {
+        let Ok(bytes) = response.bytes() else { report(&ui_weak, &state2, &active2, idx, "Ошибка чтения ответа сервера".into()); return; };
+        for byte in bytes.iter() {
             if cancel2.load(Ordering::Relaxed) { break; }
-            pending.push_str(&String::from_utf8_lossy(&chunk_bytes));
+            pending.push(char::from(*byte));
             while let Some(end) = pending.find('\n') {
                 let line=pending[..end].trim().to_string(); pending.drain(..=end);
                 let Some(payload)=line.strip_prefix("data:").map(str::trim) else { continue; };

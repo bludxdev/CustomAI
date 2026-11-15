@@ -65,7 +65,7 @@ export component AppWindow inherits Window {
                     Button { text: "+ Новый"; clicked => { root.new-chat(); root.show-chats = false; } }
                     Button { text: "Настройки"; clicked => { root.open-settings(); } }
                 }
-                ScrollView { vertical-stretch: 1; content-width: self.width;
+                ScrollView { vertical-stretch: 1;
                     VerticalLayout { spacing: 3px;
                         for row[index] in root.chats: Rectangle {
                             height: 42px; background: row.selected ? root.panel-2 : root.panel; border-radius: 8px;
@@ -80,7 +80,6 @@ export component AppWindow inherits Window {
         }
         ScrollView {
             vertical-stretch: 1; horizontal-stretch: 1;
-            content-width: self.width;
             VerticalLayout {
                 padding: 14px; spacing: 12px;
                 if root.messages.length == 0: VerticalLayout {
@@ -127,7 +126,7 @@ export component AppWindow inherits Window {
                 HorizontalLayout { Text { text: "Настройки"; color: root.ink; font-size: 22px; font-weight: 700; vertical-stretch: 1; vertical-alignment: center; horizontal-stretch: 1; }
                     Button { text: "Готово"; clicked => { root.settings-open = false; } }
                 }
-                ScrollView { vertical-stretch: 1; content-width: self.width;
+                ScrollView { vertical-stretch: 1;
                     VerticalLayout { spacing: 8px;
                         Text { text: "Провайдер"; color: root.muted; font-size: 12px; }
                         ComboBox { model: ["OpenAI-compatible", "Anthropic", "Gemini"]; current-index: root.provider == "anthropic" ? 1 : root.provider == "gemini" ? 2 : 0; selected(value) => { root.choose-provider(value); } }
