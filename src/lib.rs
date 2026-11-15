@@ -124,7 +124,7 @@ fn themes(cfg: &mut Config, ui: &AppWindow) {
     };
     ui.set_bg(parse_color(bg)); ui.set_panel(parse_color(panel)); ui.set_panel_2(parse_color(p2)); ui.set_ink(parse_color(ink)); ui.set_muted(parse_color(muted)); ui.set_accent(parse_color(accent)); ui.set_border(parse_color(border));
 }
-fn row_model<T: Clone + 'static>(items: Vec<T>) -> ModelRc<T> { ModelRc::from(items) }
+fn row_model<T: Clone + 'static>(items: Vec<T>) -> ModelRc<T> { ModelRc::from(Rc::new(VecModel::from(items))) }
 fn refresh(ui: &AppWindow, data: &Saved, active: usize) {
     let chats: Vec<ChatRow> = data.chats.iter().enumerate().rev().filter(|(_,c)| !c.messages.is_empty()).map(|(i,c)| ChatRow { id: i.to_string().into(), title: c.title.clone().into(), selected: i == active }).collect();
     ui.set_chats(row_model(chats));
@@ -148,18 +148,18 @@ fn launch_send(ui: AppWindow, state: Rc<RefCell<Saved>>, active: Rc<RefCell<usiz
     };
     ui.set_draft("".into()); ui.set_busy(true); ui.set_status("Подключение к модели…".into()); refresh(&ui,&state.borrow(),idx);
     cancel.store(false,Ordering::Relaxed);
-    let ui_weak=ui.as_weak(); let state2=state.clone(); let active2=active.clone(); let cancel2=cancel.clone();
+    let ui_weak=ui.as_weak(); let cancel2=cancel.clone();
     thread::spawn(move || {
-        let client=match reqwest::blocking::Client::builder().connect_timeout(std::time::Duration::from_secs(20)).timeout(std::time::Duration::from_secs(300)).build() { Ok(c)=>c,Err(e)=>{report(&ui_weak,&state2,&active2,idx,format!("HTTP client error: {e}"));return;} };
+        let client=match reqwest::blocking::Client::builder().connect_timeout(std::time::Duration::from_secs(20)).timeout(std::time::Duration::from_secs(300)).build() { Ok(c)=>c,Err(e)=>{report(&ui_weak,format!("HTTP client error: {e}"));return;} };
         let body=make_body(&cfg,&history); let url=chat_url(&cfg);
         let mut request=client.post(url).header("content-type","application/json");
         if cfg.provider=="anthropic" { request=request.header("anthropic-version","2023-06-01").header("x-api-key",cfg.api_key.clone()); }
         else if cfg.provider=="gemini" { request=request.header("x-goog-api-key",cfg.api_key.clone()); }
         else { request=request.bearer_auth(&cfg.api_key); }
-        let mut response=match request.json(&body).send() {Ok(r)=>r,Err(e)=>{report(&ui_weak,&state2,&active2,idx,format!("Не удалось подключиться: {e}"));return;} };
-        let status=response.status(); if !status.is_success() { let text=response.text().unwrap_or_default(); report(&ui_weak,&state2,&active2,idx,explain(status.as_u16(),&text));return; }
+        let mut response=match request.json(&body).send() {Ok(r)=>r,Err(e)=>{report(&ui_weak,format!("Не удалось подключиться: {e}"));return;} };
+        let status=response.status(); if !status.is_success() { let text=response.text().unwrap_or_default(); report(&ui_weak,explain(status.as_u16(),&text));return; }
         let mut full=String::new(); let mut pending=String::new(); let provider=cfg.provider.clone();
-        let Ok(bytes) = response.bytes() else { report(&ui_weak, &state2, &active2, idx, "Ошибка чтения ответа сервера".into()); return; };
+        let Ok(bytes) = response.bytes() else { report(&ui_weak,"Ошибка чтения ответа сервера".into()); return; };
         for byte in bytes.iter() {
             if cancel2.load(Ordering::Relaxed) { break; }
             pending.push(char::from(*byte));
@@ -168,7 +168,7 @@ fn launch_send(ui: AppWindow, state: Rc<RefCell<Saved>>, active: Rc<RefCell<usiz
                 let Some(payload)=line.strip_prefix("data:").map(str::trim) else { continue; };
                 if payload.is_empty() || payload=="[DONE]" { continue; }
                 if let Ok(event)=serde_json::from_str::<Value>(payload) {
-                    if event.get("type").and_then(Value::as_str)==Some("error") { report(&ui_weak,&state2,&active2,idx,explain(0,&event.to_string()));return; }
+                    if event.get("type").and_then(Value::as_str)==Some("error") { report(&ui_weak,explain(0,&event.to_string()));return; }
                     let (chunk,reason)=decode_event(&event,&provider); let text=if chunk.is_empty(){reason}else{chunk};
                     if !text.is_empty() { full.push_str(&text); let full2=full.clone(); let weak=ui_weak.clone(); slint::invoke_from_event_loop(move || { if let Some(ui)=weak.upgrade() { ui.set_status(full2.into()); }}).ok(); }
                 }
@@ -178,7 +178,7 @@ fn launch_send(ui: AppWindow, state: Rc<RefCell<Saved>>, active: Rc<RefCell<usiz
         slint::invoke_from_event_loop(move || { if let Some(ui)=weak.upgrade() { ui.set_busy(false); ui.set_status(result.into()); }}).ok();
     });
 }
-fn report(weak:&slint::Weak<AppWindow>, _state:&Rc<RefCell<Saved>>, _active:&Rc<RefCell<usize>>, _idx:usize, error:String) {
+fn report(weak:&slint::Weak<AppWindow>, error:String) {
     let w=weak.clone(); slint::invoke_from_event_loop(move || {if let Some(ui)=w.upgrade(){ui.set_busy(false);ui.set_status(error.into());}}).ok();
 }
 fn request_models(ui:slint::Weak<AppWindow>, cfg:Config) {
@@ -201,7 +201,7 @@ fn make_ui() -> Result<(), slint::PlatformError> {
     let u=ui.as_weak();ui.on_open_settings(move||if let Some(x)=u.upgrade(){x.set_settings_open(true);});
     let s=saved.clone();let a=active.clone();let u=ui.as_weak();ui.on_select_chat(move|i|{let count=s.borrow().chats.len();if count>0{*a.borrow_mut()=i as usize;let mut d=s.borrow_mut();d.active=*a.borrow();save(&d);if let Some(x)=u.upgrade(){refresh(&x,&d,*a.borrow());}}});
     let s=saved.clone();let a=active.clone();let u=ui.as_weak();ui.on_delete_chat(move|i|{let mut d=s.borrow_mut();let idx=i as usize;if idx<d.chats.len(){d.chats.remove(idx);if d.chats.is_empty(){add_empty_chat(&mut d);}*a.borrow_mut()=(*a.borrow()).min(d.chats.len()-1);d.active=*a.borrow();save(&d);if let Some(x)=u.upgrade(){refresh(&x,&d,*a.borrow());}}});
-    let s=saved.clone();let u=ui.as_weak();ui.on_save_settings(move|provider,endpoint,key,model,system,temp,theme|{let mut d=s.borrow_mut();d.config.provider=provider.to_string();d.config.endpoint=endpoint.to_string();d.config.api_key=key.to_string();d.config.model=model.to_string();d.config.system=system.to_string();d.config.temperature=temp;d.config.theme=theme.to_string();if d.config.endpoint.trim().is_empty()||d.config.model.trim().is_empty(){if let Some(x)=u.upgrade(){x.set_status("Укажите endpoint и модель.".into());return;}}d.config.endpoint=clean_endpoint(&d.config.endpoint);save(&d);if let Some(x)=u.upgrade(){x.set_settings_open(false);themes(&mut d.config,&x);x.set_status("Настройки сохранены локально".into());refresh(&x,&d,*active.borrow());}});
+    let s=saved.clone();let settings_active=active.clone();let u=ui.as_weak();ui.on_save_settings(move|provider,endpoint,key,model,system,temp,theme|{let mut d=s.borrow_mut();d.config.provider=provider.to_string();d.config.endpoint=endpoint.to_string();d.config.api_key=key.to_string();d.config.model=model.to_string();d.config.system=system.to_string();d.config.temperature=temp;d.config.theme=theme.to_string();if d.config.endpoint.trim().is_empty()||d.config.model.trim().is_empty(){if let Some(x)=u.upgrade(){x.set_status("Укажите endpoint и модель.".into());return;}}d.config.endpoint=clean_endpoint(&d.config.endpoint);save(&d);if let Some(x)=u.upgrade(){x.set_settings_open(false);themes(&mut d.config,&x);x.set_status("Настройки сохранены локально".into());refresh(&x,&d,*settings_active.borrow());}});
     let u=ui.as_weak();ui.on_choose_provider(move|provider|{if let Some(x)=u.upgrade(){let p=provider.to_string();let sel=match p.as_str(){"Anthropic"=>"anthropic","Gemini"=>"gemini",_=>"openai"};x.set_provider(sel.into());if let Some((_,_,ep))=PRESETS.iter().find(|(_,kind,_)|*kind==sel){x.set_endpoint((*ep).into());}}});
     let s=saved.clone();let u=ui.as_weak();ui.on_choose_theme(move|v|{if let Some(x)=u.upgrade(){let name=match v.as_str(){"Тёплая тёмная"=>"dark","Black"=>"black","OLED"=>"oled","Белая"=>"light",_=>"dark"};let mut d=s.borrow_mut();d.config.theme=name.into();themes(&mut d.config,&x);save(&d);}});
     let s=saved.clone();let u=ui.as_weak();ui.on_fetch_models(move||{if let Some(x)=u.upgrade(){let mut cfg=s.borrow().config.clone();cfg.endpoint=x.get_endpoint().to_string();cfg.api_key=x.get_api_key().to_string();cfg.model=x.get_model_id().to_string();cfg.provider=x.get_provider().to_string();x.set_status("Загружаю список моделей…".into());request_models(x.as_weak(),cfg);}});
