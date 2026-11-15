@@ -29,7 +29,7 @@ strip = true
 panic = "abort"
 
 [package.metadata.android]
-package = "app.customai.native"
+package = "app.customai.mobile"
 label = "CustomAI"
 apk_name = "CustomAI"
 build_targets = ["aarch64-linux-android"]
