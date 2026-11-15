@@ -65,7 +65,7 @@ export component AppWindow inherits Window {
                     Button { text: "+ Новый"; clicked => { root.new-chat(); root.show-chats = false; } }
                     Button { text: "Настройки"; clicked => { root.open-settings(); } }
                 }
-                ScrollView { vertical-stretch: 1; viewport-width: self.width;
+                ScrollView { vertical-stretch: 1; content-width: self.width;
                     VerticalLayout { spacing: 3px;
                         for row[index] in root.chats: Rectangle {
                             height: 42px; background: row.selected ? root.panel-2 : root.panel; border-radius: 8px;
@@ -80,7 +80,7 @@ export component AppWindow inherits Window {
         }
         ScrollView {
             vertical-stretch: 1; horizontal-stretch: 1;
-            viewport-width: self.width;
+            content-width: self.width;
             VerticalLayout {
                 padding: 14px; spacing: 12px;
                 if root.messages.length == 0: VerticalLayout {
@@ -107,7 +107,7 @@ export component AppWindow inherits Window {
             VerticalLayout {
                 padding: 10px; spacing: 6px;
                 HorizontalLayout {
-                    TextEdit { text <=> root.draft; placeholder-text: "Напишите сообщение…"; color: root.ink; background: root.bg; border-color: root.border; border-radius: 12px; font-size: 16px; min-height: 48px; max-height: 132px; horizontal-stretch: 1; }
+                    TextEdit { text <=> root.draft; placeholder-text: "Напишите сообщение…"; font-size: 16px; min-height: 48px; max-height: 132px; horizontal-stretch: 1; }
                     Button { text: root.busy ? "■" : "↑"; width: 52px; height: 48px; clicked => { if root.busy { root.stop-generation(); } else { root.send(root.draft); } } }
                 }
                 Text { text: root.status; color: root.muted; font-size: 11px; horizontal-alignment: center; wrap: word-wrap; horizontal-stretch: 1; }
@@ -127,7 +127,7 @@ export component AppWindow inherits Window {
                 HorizontalLayout { Text { text: "Настройки"; color: root.ink; font-size: 22px; font-weight: 700; vertical-stretch: 1; vertical-alignment: center; horizontal-stretch: 1; }
                     Button { text: "Готово"; clicked => { root.settings-open = false; } }
                 }
-                ScrollView { vertical-stretch: 1; viewport-width: self.width;
+                ScrollView { vertical-stretch: 1; content-width: self.width;
                     VerticalLayout { spacing: 8px;
                         Text { text: "Провайдер"; color: root.muted; font-size: 12px; }
                         ComboBox { model: ["OpenAI-compatible", "Anthropic", "Gemini"]; current-index: root.provider == "anthropic" ? 1 : root.provider == "gemini" ? 2 : 0; selected(value) => { root.choose-provider(value); } }
@@ -147,15 +147,15 @@ export component AppWindow inherits Window {
                             Button { text: "Gemini"; clicked => { root.endpoint = "https://generativelanguage.googleapis.com/v1beta"; root.provider = "gemini"; } }
                         }
                         Text { text: "Endpoint"; color: root.muted; font-size: 12px; }
-                        LineEdit { text <=> root.endpoint; placeholder-text: "https://…/v1"; color: root.ink; background: root.panel; border-color: root.border; }
+                        LineEdit { text <=> root.endpoint; placeholder-text: "https://…/v1"; }
                         Text { text: "API key"; color: root.muted; font-size: 12px; }
-                        LineEdit { text <=> root.api-key; placeholder-text: "Ключ хранится на устройстве"; color: root.ink; background: root.panel; border-color: root.border; password: true; }
+                        LineEdit { text <=> root.api-key; placeholder-text: "Ключ хранится на устройстве"; }
                         Text { text: "Модель"; color: root.muted; font-size: 12px; }
-                        HorizontalLayout { LineEdit { text <=> root.model-id; placeholder-text: "например, gpt-4o-mini"; color: root.ink; background: root.panel; border-color: root.border; horizontal-stretch: 1; }
+                        HorizontalLayout { LineEdit { text <=> root.model-id; placeholder-text: "например, gpt-4o-mini"; horizontal-stretch: 1; }
                             Button { text: "Список"; clicked => { root.fetch-models(); } }
                         }
                         Text { text: "Системный промпт"; color: root.muted; font-size: 12px; }
-                        TextEdit { text <=> root.system-prompt; placeholder-text: "Например: отвечай кратко и по-русски"; color: root.ink; background: root.panel; border-color: root.border; border-radius: 8px; min-height: 68px; }
+                        TextEdit { text <=> root.system-prompt; placeholder-text: "Например: отвечай кратко и по-русски"; min-height: 68px; }
                         Text { text: "Температура: " + root.temperature; color: root.muted; font-size: 12px; }
                         Slider { minimum: 0; maximum: 2; value <=> root.temperature; }
                         Text { text: "Оформление"; color: root.muted; font-size: 12px; }
