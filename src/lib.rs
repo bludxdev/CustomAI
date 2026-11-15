@@ -140,8 +140,8 @@ fn launch_send(ui: AppWindow, state: Rc<RefCell<Saved>>, active: Rc<RefCell<usiz
     let text=text.trim().to_string(); if text.is_empty() { return; }
     let (cfg, history, idx) = {
         let mut d=state.borrow_mut(); let mut i=*active.borrow(); if d.chats.is_empty() { i=add_empty_chat(&mut d); *active.borrow_mut()=i; }
-        let Some(c)=d.chats.get_mut(i) else { return; };
         if d.config.endpoint.trim().is_empty() || d.config.model.trim().is_empty() { ui.set_status("Сначала укажите endpoint и модель в настройках.".into()); ui.set_settings_open(true); return; }
+        let Some(c)=d.chats.get_mut(i) else { return; };
         let first=c.messages.is_empty(); c.messages.push(Message {role:"user".into(),content:text.clone(),state:"done".into()}); c.messages.push(Message {role:"assistant".into(),content:String::new(),state:"streaming".into()});
         if first { c.title=if text.chars().count()>48 {format!("{}…",text.chars().take(47).collect::<String>())} else {text.clone()}; }
         c.updated=now(); let history=c.messages.iter().take(c.messages.len()-1).cloned().collect::<Vec<_>>(); save(&d); (d.config.clone(),history,i)
