@@ -1,0 +1,5 @@
+error: failed to parse manifest at `/storage/emulated/0/Projects/SiteAI/Cargo.toml`
+
+Caused by:
+  can't find library `siteai`, rename file to `src/lib.rs` or specify lib.path
+FETCH_EXIT=0

@@ -1,0 +1,36 @@
+127.0.0.1 - - [15/Nov/2026 12:13:20] "GET /index.html HTTP/1.1" 200 -
+127.0.0.1 - - [15/Nov/2026 12:13:20] "GET /css/base.css HTTP/1.1" 200 -
+127.0.0.1 - - [15/Nov/2026 12:13:20] "GET /fonts/fonts.css HTTP/1.1" 200 -
+127.0.0.1 - - [15/Nov/2026 12:13:20] "GET /css/chat.css HTTP/1.1" 200 -
+127.0.0.1 - - [15/Nov/2026 12:13:20] "GET /js/api.js HTTP/1.1" 200 -
+127.0.0.1 - - [15/Nov/2026 12:13:20] "GET /js/render.js HTTP/1.1" 200 -
+127.0.0.1 - - [15/Nov/2026 12:13:20] "GET /js/store.js HTTP/1.1" 200 -
+127.0.0.1 - - [15/Nov/2026 12:13:20] "GET /js/settings.js HTTP/1.1" 200 -
+127.0.0.1 - - [15/Nov/2026 12:13:20] "GET /js/app.js HTTP/1.1" 200 -
+127.0.0.1 - - [15/Nov/2026 12:13:20] code 404, message File not found
+127.0.0.1 - - [15/Nov/2026 12:13:20] "GET /api/health HTTP/1.1" 404 -
+127.0.0.1 - - [15/Nov/2026 12:13:20] "GET /fonts/onest-normal-400-700-latin.woff2 HTTP/1.1" 200 -
+127.0.0.1 - - [15/Nov/2026 12:13:20] "GET /fonts/lora-italic-500-latin.woff2 HTTP/1.1" 200 -
+127.0.0.1 - - [15/Nov/2026 12:13:20] "GET /fonts/jetbrains-mono-normal-400-cyrillic.woff2 HTTP/1.1" 200 -
+127.0.0.1 - - [15/Nov/2026 12:13:20] "GET /fonts/jetbrains-mono-normal-400-latin.woff2 HTTP/1.1" 200 -
+127.0.0.1 - - [15/Nov/2026 12:13:20] "GET /fonts/onest-normal-400-700-cyrillic.woff2 HTTP/1.1" 200 -
+127.0.0.1 - - [15/Nov/2026 12:13:20] "GET /fonts/jetbrains-mono-normal-500-latin.woff2 HTTP/1.1" 200 -
+127.0.0.1 - - [15/Nov/2026 12:13:20] "GET /fonts/lora-italic-500-cyrillic.woff2 HTTP/1.1" 200 -
+127.0.0.1 - - [15/Nov/2026 12:13:20] code 404, message File not found
+127.0.0.1 - - [15/Nov/2026 12:13:20] "GET /favicon.ico HTTP/1.1" 404 -
+127.0.0.1 - - [15/Nov/2026 12:14:18] "GET /index.html HTTP/1.1" 304 -
+127.0.0.1 - - [15/Nov/2026 12:14:18] code 404, message File not found
+127.0.0.1 - - [15/Nov/2026 12:14:18] "GET /api/health HTTP/1.1" 404 -
+127.0.0.1 - - [15/Nov/2026 12:14:36] "GET /fonts/fonts.css?v=1794726876927 HTTP/1.1" 200 -
+127.0.0.1 - - [15/Nov/2026 12:14:36] "GET /css/base.css?v=1794726876940 HTTP/1.1" 200 -
+127.0.0.1 - - [15/Nov/2026 12:14:36] "GET /css/chat.css?v=1794726876941 HTTP/1.1" 200 -
+127.0.0.1 - - [15/Nov/2026 12:14:40] "GET /css/base.css?nocache=1794726880605 HTTP/1.1" 200 -
+127.0.0.1 - - [15/Nov/2026 12:14:47] "GET /index.html?v=2 HTTP/1.1" 200 -
+127.0.0.1 - - [15/Nov/2026 12:14:47] code 404, message File not found
+127.0.0.1 - - [15/Nov/2026 12:14:47] "GET /api/health HTTP/1.1" 404 -
+127.0.0.1 - - [15/Nov/2026 12:15:33] "GET /css/base.css?v=1794726933722 HTTP/1.1" 200 -
+127.0.0.1 - - [15/Nov/2026 12:15:33] "GET /css/chat.css?v=1794726933746 HTTP/1.1" 200 -
+127.0.0.1 - - [15/Nov/2026 12:16:27] "GET /index.html?check=3 HTTP/1.1" 200 -
+127.0.0.1 - - [15/Nov/2026 12:16:27] code 404, message File not found
+127.0.0.1 - - [15/Nov/2026 12:16:27] "GET /api/health HTTP/1.1" 404 -
+127.0.0.1 - - [15/Nov/2026 12:17:03] "GET /js/settings.js HTTP/1.1" 200 -
