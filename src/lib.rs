@@ -114,7 +114,7 @@ fn collect_models(data: &Value) -> Vec<String> {
     let mut out = arr.map(|a| a.iter().filter_map(|m| m.as_str().or_else(||m.get("id").and_then(Value::as_str)).or_else(||m.get("name").and_then(Value::as_str))).map(|s| s.trim_start_matches("models/").to_string()).collect::<Vec<_>>()).unwrap_or_default();
     out.sort(); out.dedup(); out
 }
-fn parse_color(hex: &str) -> slint::Color { let h = hex.trim_start_matches('#'); let n = u32::from_str_radix(h, 16).unwrap_or(0); slint::Color::from(slint::RgbaColor::from_rgb_u8((n >> 16) as u8, (n >> 8) as u8, n as u8)) }
+fn parse_color(hex: &str) -> slint::Color { let h = hex.trim_start_matches('#'); let n = u32::from_str_radix(h, 16).unwrap_or(0); slint::Color::from_rgb_u8((n >> 16) as u8, (n >> 8) as u8, n as u8) }
 fn themes(cfg: &mut Config, ui: &AppWindow) {
     let (bg, panel, p2, ink, muted, accent, border) = match cfg.theme.as_str() {
         "light" => ("#f7f4ee","#ffffff","#ebe6dc","#1f1c18","#655e53","#a85a14","#dad3c6"),
@@ -204,7 +204,7 @@ fn make_ui() -> Result<(), slint::PlatformError> {
     let u=ui.as_weak();ui.on_choose_provider(move|provider|{if let Some(x)=u.upgrade(){let p=provider.to_string();let sel=match p.as_str(){"Anthropic"=>"anthropic","Gemini"=>"gemini",_=>"openai"};x.set_provider(sel.into());if let Some((_,_,ep))=PRESETS.iter().find(|(_,kind,_)|*kind==sel){x.set_endpoint((*ep).into());}}});
     let s=saved.clone();let u=ui.as_weak();ui.on_choose_theme(move|v|{if let Some(x)=u.upgrade(){let name=match v.as_str(){"Тёплая тёмная"=>"dark","Black"=>"black","OLED"=>"oled","Белая"=>"light",_=>"dark"};let mut d=s.borrow_mut();d.config.theme=name.into();themes(&mut d.config,&x);save(&d);}});
     let s=saved.clone();let u=ui.as_weak();ui.on_fetch_models(move||{if let Some(x)=u.upgrade(){let mut cfg=s.borrow().config.clone();cfg.endpoint=x.get_endpoint().to_string();cfg.api_key=x.get_api_key().to_string();cfg.model=x.get_model_id().to_string();cfg.provider=x.get_provider().to_string();x.set_status("Загружаю список моделей…".into());request_models(x.as_weak(),cfg);}});
-    let s=saved.clone();let a=active.clone();let u=ui.as_weak();let c=cancel.clone();ui.on_send(move|text|{if let Some(x)=u.upgrade(){let mut d=s.borrow_mut();d.config.endpoint=x.get_endpoint().to_string();d.config.api_key=x.get_api_key().to_string();d.config.model=x.get_model_id().to_string();d.config.provider=x.get_provider().to_string();d.config.system=x.get_system_prompt().to_string();d.config.temperature=x.get_temperature();let _=d;launch_send(x,s.clone(),a.clone(),c.clone(),text.to_string());}});
+    let s=saved.clone();let a=active.clone();let u=ui.as_weak();let c=cancel.clone();ui.on_send(move|text|{if let Some(x)=u.upgrade(){let mut d=s.borrow_mut();d.config.endpoint=x.get_endpoint().to_string();d.config.api_key=x.get_api_key().to_string();d.config.model=x.get_model_id().to_string();d.config.provider=x.get_provider().to_string();d.config.system=x.get_system_prompt().to_string();d.config.temperature=x.get_temperature();drop(d);launch_send(x,Rc::clone(&s),Rc::clone(&a),Arc::clone(&c),text.to_string());}});
     let c=cancel.clone();ui.on_stop_generation(move||{c.store(true,Ordering::Relaxed);});
     let s=saved.clone();let a=active.clone();let u=ui.as_weak();ui.on_clear_status(move||if let Some(x)=u.upgrade(){refresh(&x,&s.borrow(),*a.borrow());});
     ui.run()
