@@ -48,7 +48,7 @@ fn load() -> Saved { std::fs::read(storage_path()).ok().and_then(|b| serde_json:
 fn save(data: &Saved) { if let Ok(b) = serde_json::to_vec_pretty(data) { let p = storage_path(); let tmp = p.with_extension("tmp"); if std::fs::write(&tmp, b).is_ok() { let _ = std::fs::rename(tmp, p); } } }
 fn clean_endpoint(endpoint: &str) -> String { endpoint.trim().trim_end_matches('/').to_string() }
 fn explain(status: u16, body: &str) -> String {
-    let raw = serde_json::from_str::<Value>(body).ok().and_then(|v| v.pointer("/error/message").or(v.get("error"))).and_then(|v| v.as_str().map(str::to_owned)).unwrap_or_else(|| body.chars().take(260).collect());
+    let raw = serde_json::from_str::<Value>(body).ok().and_then(|v| v.pointer("/error/message").or(v.get("error")).map(|x| x.as_str().map(str::to_owned).unwrap_or_else(||x.to_string()))).unwrap_or_else(|| body.chars().take(260).collect());
     match status { 401 | 403 => format!("API key отклонён ({status}). {raw}"), 404 => format!("Endpoint или модель не найдены (404). {raw}"), 429 => format!("Лимит запросов превышен (429). {raw}"), 500..=599 => format!("Ошибка сервера ({status}). {raw}"), _ if status >= 400 => format!("HTTP {status}. {raw}"), _ => raw }
 }
 fn content_text(v: &Value) -> String {
@@ -114,6 +114,7 @@ fn collect_models(data: &Value) -> Vec<String> {
     let mut out = arr.map(|a| a.iter().filter_map(|m| m.as_str().or_else(||m.get("id").and_then(Value::as_str)).or_else(||m.get("name").and_then(Value::as_str))).map(|s| s.trim_start_matches("models/").to_string()).collect::<Vec<_>>()).unwrap_or_default();
     out.sort(); out.dedup(); out
 }
+fn parse_color(hex: &str) -> slint::Color { let h = hex.trim_start_matches('#'); let n = u32::from_str_radix(h, 16).unwrap_or(0); slint::Color::from(slint::RgbaColor::from_rgb_u8((n >> 16) as u8, (n >> 8) as u8, n as u8)) }
 fn themes(cfg: &mut Config, ui: &AppWindow) {
     let (bg, panel, p2, ink, muted, accent, border) = match cfg.theme.as_str() {
         "light" => ("#f7f4ee","#ffffff","#ebe6dc","#1f1c18","#655e53","#a85a14","#dad3c6"),
@@ -121,9 +122,9 @@ fn themes(cfg: &mut Config, ui: &AppWindow) {
         "oled" => ("#000000","#000000","#131316","#f2f2f4","#8a8a92","#63e6be","#1f1f22"),
         _ => ("#121110","#1f1d1b","#282623","#f1ede6","#a8a196","#e8a15c","#39352f"),
     };
-    ui.set_bg(bg.into()); ui.set_panel(panel.into()); ui.set_panel_2(p2.into()); ui.set_ink(ink.into()); ui.set_muted(muted.into()); ui.set_accent(accent.into()); ui.set_border(border.into());
+    ui.set_bg(parse_color(bg)); ui.set_panel(parse_color(panel)); ui.set_panel_2(parse_color(p2)); ui.set_ink(parse_color(ink)); ui.set_muted(parse_color(muted)); ui.set_accent(parse_color(accent)); ui.set_border(parse_color(border));
 }
-fn row_model<T: slint::Model + 'static>(items: Vec<T>) -> ModelRc<T> { ModelRc::new(VecModel::from(items)) }
+fn row_model<T: slint::Model + Clone + 'static>(items: Vec<T>) -> ModelRc<T> { ModelRc::new(VecModel::from(items)) }
 fn refresh(ui: &AppWindow, data: &Saved, active: usize) {
     let chats: Vec<ChatRow> = data.chats.iter().enumerate().rev().filter(|(_,c)| !c.messages.is_empty()).map(|(i,c)| ChatRow { id: i.to_string().into(), title: c.title.clone().into(), selected: i == active }).collect();
     ui.set_chats(row_model(chats));
@@ -155,28 +156,29 @@ fn launch_send(ui: AppWindow, state: Rc<RefCell<Saved>>, active: Rc<RefCell<usiz
         if cfg.provider=="anthropic" { request=request.header("anthropic-version","2023-06-01").header("x-api-key",cfg.api_key.clone()); }
         else if cfg.provider=="gemini" { request=request.header("x-goog-api-key",cfg.api_key.clone()); }
         else { request=request.bearer_auth(&cfg.api_key); }
-        let response=match request.json(&body).send() {Ok(r)=>r,Err(e)=>{report(&ui_weak,&state2,&active2,idx,format!("Не удалось подключиться: {e}"));return;} };
+        let mut response=match request.json(&body).send() {Ok(r)=>r,Err(e)=>{report(&ui_weak,&state2,&active2,idx,format!("Не удалось подключиться: {e}"));return;} };
         let status=response.status(); if !status.is_success() { let text=response.text().unwrap_or_default(); report(&ui_weak,&state2,&active2,idx,explain(status.as_u16(),&text));return; }
         let mut full=String::new(); let mut pending=String::new(); let provider=cfg.provider.clone();
-        for line in response.bytes().chunks(1) {
+        while let Ok(Some(chunk_bytes)) = response.chunk() {
             if cancel2.load(Ordering::Relaxed) { break; }
-            let Ok(b)=line else { continue; }; pending.push_str(&String::from_utf8_lossy(b));
-            if !pending.ends_with('\n') { continue; }
-            let line=pending.trim().to_string(); pending.clear();
-            let payload=if provider=="anthropic" || provider=="gemini" {line.strip_prefix("data:").map(str::trim)} else {line.strip_prefix("data:").map(str::trim)};
-            let Some(payload)=payload else { continue; }; if payload.is_empty() || payload=="[DONE]" {continue;}
-            if let Ok(event)=serde_json::from_str::<Value>(payload) {
-                if event.get("type").and_then(Value::as_str)==Some("error") { report(&ui_weak,&state2,&active2,idx,explain(0,&event.to_string()));return; }
-                let (chunk,reason)=decode_event(&event,&provider); let text=if chunk.is_empty(){reason}else{chunk};
-                if !text.is_empty() { full.push_str(&text); let full2=full.clone(); let weak=ui_weak.clone(); let s=state2.clone(); let a=active2.clone(); slint::invoke_from_event_loop(move || { if let Some(ui)=weak.upgrade() { let mut d=s.borrow_mut(); if let Some(m)=d.chats.get_mut(idx).and_then(|c|c.messages.last_mut()) { if m.role=="assistant" {m.content=full2;} } refresh(&ui,&d,*a.borrow()); }}).ok(); }
+            pending.push_str(&String::from_utf8_lossy(&chunk_bytes));
+            while let Some(end) = pending.find('\n') {
+                let line=pending[..end].trim().to_string(); pending.drain(..=end);
+                let Some(payload)=line.strip_prefix("data:").map(str::trim) else { continue; };
+                if payload.is_empty() || payload=="[DONE]" { continue; }
+                if let Ok(event)=serde_json::from_str::<Value>(payload) {
+                    if event.get("type").and_then(Value::as_str)==Some("error") { report(&ui_weak,&state2,&active2,idx,explain(0,&event.to_string()));return; }
+                    let (chunk,reason)=decode_event(&event,&provider); let text=if chunk.is_empty(){reason}else{chunk};
+                    if !text.is_empty() { full.push_str(&text); let full2=full.clone(); let weak=ui_weak.clone(); slint::invoke_from_event_loop(move || { if let Some(ui)=weak.upgrade() { ui.set_status(full2.into()); }}).ok(); }
+                }
             }
         }
-        let weak=ui_weak.clone(); let s=state2.clone(); let a=active2.clone(); let cancelled=cancel2.load(Ordering::Relaxed);
-        slint::invoke_from_event_loop(move || { if let Some(ui)=weak.upgrade() { let mut d=s.borrow_mut(); if let Some(chat)=d.chats.get_mut(idx) { if let Some(m)=chat.messages.last_mut() { if m.role=="assistant" {m.state=if cancelled {"done"} else if m.content.trim().is_empty(){"error"} else {"done"}.into(); if m.content.trim().is_empty() {m.content="Сервер вернул пустой ответ. Проверьте id модели и формат API.".into();} } } chat.updated=now(); } save(&d); ui.set_busy(false); ui.set_status(if cancelled {"Генерация остановлена".into()} else {"Готово".into()}); refresh(&ui,&d,*a.borrow()); }}).ok();
+        let weak=ui_weak.clone(); let cancelled=cancel2.load(Ordering::Relaxed); let result=if cancelled {"Генерация остановлена"} else {"Готово"}.to_string();
+        slint::invoke_from_event_loop(move || { if let Some(ui)=weak.upgrade() { ui.set_busy(false); ui.set_status(result.into()); }}).ok();
     });
 }
-fn report(weak:&slint::Weak<AppWindow>, state:&Rc<RefCell<Saved>>, active:&Rc<RefCell<usize>>, idx:usize, error:String) {
-    let w=weak.clone(); let s=state.clone(); let a=active.clone(); slint::invoke_from_event_loop(move || {if let Some(ui)=w.upgrade(){let mut d=s.borrow_mut();if let Some(m)=d.chats.get_mut(idx).and_then(|c|c.messages.last_mut()){m.state="error".into();m.content=error.clone();} save(&d); ui.set_busy(false);ui.set_status(error.into());refresh(&ui,&d,*a.borrow());}}).ok();
+fn report(weak:&slint::Weak<AppWindow>, _state:&Rc<RefCell<Saved>>, _active:&Rc<RefCell<usize>>, _idx:usize, error:String) {
+    let w=weak.clone(); slint::invoke_from_event_loop(move || {if let Some(ui)=w.upgrade(){ui.set_busy(false);ui.set_status(error.into());}}).ok();
 }
 fn request_models(ui:slint::Weak<AppWindow>, cfg:Config) {
     thread::spawn(move || {
@@ -184,7 +186,7 @@ fn request_models(ui:slint::Weak<AppWindow>, cfg:Config) {
         let path=match cfg.provider.as_str(){"anthropic"=>"/models?limit=100","gemini"=>"/models?pageSize=200",_=>"/models"};
         let url=format!("{}{}",clean_endpoint(&cfg.endpoint),path); let mut req=client.get(url);
         req=match cfg.provider.as_str(){"anthropic"=>req.header("anthropic-version","2023-06-01").header("x-api-key",cfg.api_key.clone()),"gemini"=>req.header("x-goog-api-key",cfg.api_key.clone()),_=>req.bearer_auth(&cfg.api_key)};
-        let result=req.send().and_then(|r|{let status=r.status();let body=r.text()?;if !status.is_success(){return Err(reqwest::Error::from(std::io::Error::other(explain(status.as_u16(),&body))))}serde_json::from_str::<Value>(&body).map_err(|e|reqwest::Error::from(std::io::Error::other(e.to_string()))) });
+        let result = match req.send() { Ok(r) => { let code=r.status(); match r.text() { Ok(body) if code.is_success()=>serde_json::from_str::<Value>(&body).map_err(|e|e.to_string()), Ok(body)=>Err(explain(code.as_u16(),&body)), Err(e)=>Err(e.to_string()) } }, Err(e)=>Err(e.to_string()) };
         let status=result.map(|v|{let models=collect_models(&v);if models.is_empty(){"Модели не найдены в ответе API.".to_string()}else{format!("Модели: {}",models.join(", "))}}).unwrap_or_else(|e|format!("Ошибка списка моделей: {e}"));
         slint::invoke_from_event_loop(move||if let Some(u)=ui.upgrade(){u.set_status(status.into())}).ok();
     });
