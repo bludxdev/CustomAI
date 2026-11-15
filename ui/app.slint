@@ -1,0 +1,170 @@
+import { Button, LineEdit, TextEdit, ScrollView, Slider, ComboBox } from "std-widgets.slint";
+
+export struct ChatRow { id: string, title: string, selected: bool }
+export struct MessageRow { role: string, content: string, state: string }
+
+export component AppWindow inherits Window {
+    title: "SiteAI";
+    width: 412px;
+    height: 840px;
+    min-width: 320px;
+    min-height: 520px;
+    background: root.bg;
+
+    in-out property <color> bg: #121110;
+    in-out property <color> panel: #1f1d1b;
+    in-out property <color> panel-2: #282623;
+    in-out property <color> ink: #f1ede6;
+    in-out property <color> muted: #a8a196;
+    in-out property <color> accent: #e8a15c;
+    in-out property <color> border: #39352f;
+    in-out property <[ChatRow]> chats: [];
+    in-out property <[MessageRow]> messages: [];
+    in-out property <string> title-text: "Новый чат";
+    in-out property <string> model-label: "Подключить API";
+    in-out property <string> draft: "";
+    in-out property <string> status: "Частные ключи хранятся только на устройстве";
+    in-out property <bool> busy: false;
+    in-out property <bool> settings-open: false;
+    in-out property <bool> show-chats: false;
+    in-out property <string> endpoint: "";
+    in-out property <string> api-key: "";
+    in-out property <string> model-id: "";
+    in-out property <string> provider: "openai";
+    in-out property <string> system-prompt: "";
+    in-out property <string> theme-name: "dark";
+    in-out property <float> temperature: 0.7;
+
+    callback send(string);
+    callback new-chat();
+    callback open-settings();
+    callback save-settings(string, string, string, string, string, float, string);
+    callback select-chat(int);
+    callback delete-chat(int);
+    callback stop-generation();
+    callback choose-provider(string);
+    callback choose-theme(string);
+    callback fetch-models();
+    callback clear-status();
+
+    VerticalLayout {
+        spacing: 0px;
+        Rectangle { height: 58px; background: root.panel; horizontal-stretch: 1;
+            HorizontalLayout {
+                padding-left: 12px; padding-right: 12px; spacing: 8px;
+                Button { text: "☰"; width: 42px; clicked => { root.show-chats = !root.show-chats; } }
+                Text { text: root.title-text; color: root.ink; font-size: 17px; font-weight: 700; vertical-alignment: center; horizontal-stretch: 1; overflow: elide; }
+                Button { text: root.model-label; clicked => { root.open-settings(); } }
+            }
+        }
+        if root.show-chats: Rectangle {
+            height: 215px; background: root.panel; horizontal-stretch: 1;
+            VerticalLayout {
+                padding: 8px; spacing: 4px;
+                HorizontalLayout { Text { text: "Чаты"; color: root.muted; vertical-alignment: center; horizontal-stretch: 1; }
+                    Button { text: "+ Новый"; clicked => { root.new-chat(); root.show-chats = false; } }
+                    Button { text: "Настройки"; clicked => { root.open-settings(); } }
+                }
+                ScrollView { vertical-stretch: 1; viewport-width: self.width;
+                    VerticalLayout { spacing: 3px;
+                        for row[index] in root.chats: Rectangle {
+                            height: 42px; background: row.selected ? root.panel-2 : root.panel; border-radius: 8px;
+                            HorizontalLayout { padding-left: 9px; padding-right: 4px;
+                                Button { text: row.title; horizontal-stretch: 1; clicked => { root.select-chat(index); root.show-chats = false; } }
+                                Button { text: "×"; width: 38px; clicked => { root.delete-chat(index); } }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        ScrollView {
+            vertical-stretch: 1; horizontal-stretch: 1;
+            viewport-width: self.width;
+            VerticalLayout {
+                padding: 14px; spacing: 12px;
+                if root.messages.length == 0: VerticalLayout {
+                    alignment: center; vertical-stretch: 1; spacing: 12px;
+                    Text { text: "SiteAI"; color: root.accent; font-size: 34px; font-weight: 800; horizontal-alignment: center; }
+                    Text { text: "Чат с вашей нейросетью"; color: root.ink; font-size: 19px; horizontal-alignment: center; }
+                    Text { text: "Подключите API в настройках, затем задайте вопрос."; color: root.muted; horizontal-alignment: center; wrap: word-wrap; }
+                    Button { text: "Настроить подключение"; clicked => { root.open-settings(); } }
+                }
+                for msg[index] in root.messages: Rectangle {
+                    background: msg.role == "user" ? root.panel-2 : root.panel;
+                    border-radius: 14px; horizontal-stretch: 1;
+                    VerticalLayout {
+                        padding: 11px; spacing: 5px;
+                        Text { text: msg.role == "user" ? "Вы" : "SiteAI"; color: msg.role == "user" ? root.accent : root.muted; font-size: 12px; font-weight: 700; }
+                        Text { text: msg.content; color: root.ink; font-size: 15px; wrap: word-wrap; horizontal-stretch: 1; }
+                        if msg.state == "error": Text { text: "Ответ не получен"; color: #ef8070; font-size: 12px; }
+                    }
+                }
+            }
+        }
+        Rectangle {
+            background: root.panel; horizontal-stretch: 1;
+            VerticalLayout {
+                padding: 10px; spacing: 6px;
+                HorizontalLayout {
+                    TextEdit { text <=> root.draft; placeholder-text: "Напишите сообщение…"; color: root.ink; background: root.bg; border-color: root.border; border-radius: 12px; font-size: 16px; min-height: 48px; max-height: 132px; horizontal-stretch: 1; }
+                    Button { text: root.busy ? "■" : "↑"; width: 52px; height: 48px; clicked => { if root.busy { root.stop-generation(); } else { root.send(root.draft); } } }
+                }
+                Text { text: root.status; color: root.muted; font-size: 11px; horizontal-alignment: center; wrap: word-wrap; horizontal-stretch: 1; }
+            }
+        }
+    }
+
+    if root.settings-open: Rectangle {
+        background: #00000099;
+        x: 0px; y: 0px; width: parent.width; height: parent.height;
+        TouchArea { width: parent.width; height: parent.height; clicked => { root.settings-open = false; } }
+        Rectangle {
+            x: 12px; y: 16px; width: parent.width - 24px; height: parent.height - 32px;
+            background: root.bg; border-color: root.border; border-width: 1px; border-radius: 18px;
+            VerticalLayout {
+                padding: 14px; spacing: 8px;
+                HorizontalLayout { Text { text: "Настройки"; color: root.ink; font-size: 22px; font-weight: 700; vertical-stretch: 1; vertical-alignment: center; horizontal-stretch: 1; }
+                    Button { text: "Готово"; clicked => { root.settings-open = false; } }
+                }
+                ScrollView { vertical-stretch: 1; viewport-width: self.width;
+                    VerticalLayout { spacing: 8px;
+                        Text { text: "Провайдер"; color: root.muted; font-size: 12px; }
+                        ComboBox { model: ["OpenAI-compatible", "Anthropic", "Gemini"]; current-index: root.provider == "anthropic" ? 1 : root.provider == "gemini" ? 2 : 0; selected(value) => { root.choose-provider(value); } }
+                        Text { text: "Быстрые endpoints"; color: root.muted; font-size: 12px; }
+                        HorizontalLayout { spacing: 4px;
+                            Button { text: "OpenAI"; clicked => { root.endpoint = "https://api.openai.com/v1"; root.provider = "openai"; } }
+                            Button { text: "OpenRouter"; clicked => { root.endpoint = "https://openrouter.ai/api/v1"; root.provider = "openai"; } }
+                            Button { text: "Groq"; clicked => { root.endpoint = "https://api.groq.com/openai/v1"; root.provider = "openai"; } }
+                        }
+                        HorizontalLayout { spacing: 4px;
+                            Button { text: "DeepSeek"; clicked => { root.endpoint = "https://api.deepseek.com/v1"; root.provider = "openai"; } }
+                            Button { text: "Ollama"; clicked => { root.endpoint = "http://localhost:11434/v1"; root.provider = "openai"; } }
+                            Button { text: "LM Studio"; clicked => { root.endpoint = "http://localhost:1234/v1"; root.provider = "openai"; } }
+                        }
+                        HorizontalLayout { spacing: 4px;
+                            Button { text: "Anthropic"; clicked => { root.endpoint = "https://api.anthropic.com/v1"; root.provider = "anthropic"; } }
+                            Button { text: "Gemini"; clicked => { root.endpoint = "https://generativelanguage.googleapis.com/v1beta"; root.provider = "gemini"; } }
+                        }
+                        Text { text: "Endpoint"; color: root.muted; font-size: 12px; }
+                        LineEdit { text <=> root.endpoint; placeholder-text: "https://…/v1"; color: root.ink; background: root.panel; border-color: root.border; }
+                        Text { text: "API key"; color: root.muted; font-size: 12px; }
+                        LineEdit { text <=> root.api-key; placeholder-text: "Ключ хранится на устройстве"; color: root.ink; background: root.panel; border-color: root.border; password: true; }
+                        Text { text: "Модель"; color: root.muted; font-size: 12px; }
+                        HorizontalLayout { LineEdit { text <=> root.model-id; placeholder-text: "например, gpt-4o-mini"; color: root.ink; background: root.panel; border-color: root.border; horizontal-stretch: 1; }
+                            Button { text: "Список"; clicked => { root.fetch-models(); } }
+                        }
+                        Text { text: "Системный промпт"; color: root.muted; font-size: 12px; }
+                        TextEdit { text <=> root.system-prompt; placeholder-text: "Например: отвечай кратко и по-русски"; color: root.ink; background: root.panel; border-color: root.border; border-radius: 8px; min-height: 68px; }
+                        Text { text: "Температура: " + root.temperature; color: root.muted; font-size: 12px; }
+                        Slider { minimum: 0; maximum: 2; value <=> root.temperature; }
+                        Text { text: "Оформление"; color: root.muted; font-size: 12px; }
+                        ComboBox { model: ["Тёплая тёмная", "Black", "OLED", "Белая"]; current-index: root.theme-name == "light" ? 3 : root.theme-name == "oled" ? 2 : root.theme-name == "black" ? 1 : 0; selected(value) => { root.choose-theme(value); } }
+                    }
+                }
+                Text { text: "API-ключ сохранён локально, запросы отправляются выбранному провайдеру."; color: root.muted; font-size: 11px; wrap: word-wrap; horizontal-stretch: 1; }
+                Button { text: "Сохранить настройки"; horizontal-stretch: 1; clicked => { root.save-settings(root.provider, root.endpoint, root.api-key, root.model-id, root.system-prompt, root.temperature, root.theme-name); } }
+            }
+        }
+    }
+}

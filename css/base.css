@@ -1,0 +1,273 @@
+/* Токены, сброс, кнопки, поля, диалог настроек */
+:root {
+  --bg: #121110;
+  --side: #181715;
+  --surface: #1f1d1b;
+  --surface-2: #282623;
+  --border: #33302c;
+  --ink: #f1ede6;
+  --muted: #a8a196;
+  --accent: #e8a15c;
+  --accent-ink: #1c1206;
+  --danger: #f08572;
+  --ok: #8fcf9a;
+  --code-bg: #171614;
+  --shadow: 0 18px 50px rgba(0, 0, 0, .45);
+  --radius: 14px;
+  --sans: 'Onest', 'Segoe UI', system-ui, sans-serif;
+  --mono: 'JetBrains Mono', Consolas, monospace;
+  --serif: 'Lora', Georgia, serif;
+  color-scheme: dark;
+}
+[data-theme="light"] {
+  --bg: #f7f4ee;
+  --side: #efebe3;
+  --surface: #ffffff;
+  --surface-2: #ebe6dc;
+  --border: #dad3c6;
+  --ink: #1f1c18;
+  --muted: #655e53;
+  --accent: #a85a14;
+  --accent-ink: #ffffff;
+  --danger: #b3392a;
+  --ok: #2f7a3e;
+  --code-bg: #f1ede4;
+  --shadow: 0 18px 50px rgba(60, 45, 20, .18);
+  color-scheme: light;
+}
+/* Black — почти чёрный, нейтральный */
+[data-theme="black"] {
+  --bg: #0a0a0b;
+  --side: #101012;
+  --surface: #161618;
+  --surface-2: #1e1e21;
+  --border: #28282c;
+  --ink: #e8e8ea;
+  --muted: #8d8d94;
+  --accent: #7ba2ff;
+  --accent-ink: #05101f;
+  --danger: #ff7b6b;
+  --ok: #6fd08a;
+  --code-bg: #0e0e10;
+  --shadow: 0 18px 50px rgba(0, 0, 0, .6);
+  color-scheme: dark;
+}
+/* OLED — абсолютный чёрный, минимальные границы */
+[data-theme="oled"] {
+  --bg: #000000;
+  --side: #000000;
+  --surface: #000000;
+  --surface-2: #131316;
+  --border: #1f1f22;
+  --ink: #f2f2f4;
+  --muted: #8a8a92;
+  --accent: #63e6be;
+  --accent-ink: #00140e;
+  --danger: #ff6b6b;
+  --ok: #63e6be;
+  --code-bg: #0b0b0d;
+  --shadow: 0 18px 50px rgba(0, 0, 0, .8);
+  color-scheme: dark;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font: 400 15px/1.6 var(--sans);
+  overflow: hidden;
+  overscroll-behavior: none;
+  -webkit-font-smoothing: antialiased;
+}
+button, input, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+/* Элемент с атрибутом hidden скрыт по-настоящему, даже если у него задан display. */
+[hidden] { display: none !important; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+::selection { background: color-mix(in srgb, var(--accent) 35%, transparent); }
+* { scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+.mono { font-family: var(--mono); font-size: 13px; }
+
+/* Кнопки */
+.btn {
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  font-weight: 500;
+  white-space: nowrap;
+  transition: background .15s, border-color .15s, color .15s;
+}
+.btn:hover { background: var(--surface-2); }
+.btn:disabled { opacity: .55; cursor: default; }
+.btn-ghost { background: transparent; }
+.btn-primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
+.btn-primary:hover { background: color-mix(in srgb, var(--accent) 88%, var(--ink)); }
+.icon-btn {
+  width: 44px; height: 44px;
+  display: grid; place-items: center;
+  border: 0; border-radius: 10px;
+  background: transparent; color: var(--muted);
+}
+.icon-btn:hover { background: var(--surface-2); color: var(--ink); }
+
+/* Поля */
+.field { display: grid; gap: 8px; }
+.field > label { font-size: 13px; font-weight: 600; color: var(--muted); display: flex; gap: 8px; align-items: baseline; }
+.field .opt { font-weight: 400; opacity: .8; }
+.field output { margin-left: auto; font-family: var(--mono); color: var(--ink); }
+input[type="text"], input[type="url"], input[type="password"], textarea {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+  transition: border-color .15s;
+}
+textarea { resize: vertical; line-height: 1.5; }
+input:hover, textarea:hover { border-color: color-mix(in srgb, var(--border) 50%, var(--muted)); }
+input:focus, textarea:focus { outline: none; border-color: var(--accent); }
+input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--muted) 70%, transparent); }
+input[type="range"] { width: 100%; accent-color: var(--accent); height: 28px; }
+.with-btn { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+.note { margin: 0; font-size: 12.5px; color: var(--muted); }
+.note.err { color: var(--danger); }
+
+/* Переключатель типа API */
+.seg { display: flex; gap: 4px; padding: 4px; border: 1px solid var(--border); border-radius: 12px; background: var(--bg); }
+.seg button { flex: 1 1 auto; min-height: 40px; padding: 0 8px; white-space: nowrap; border: 0; border-radius: 8px; background: transparent; color: var(--muted); font-size: 13.5px; font-weight: 500; }
+.seg button:hover { color: var(--ink); }
+.seg button[aria-checked="true"] { background: var(--surface-2); color: var(--ink); }
+
+.presets { display: flex; flex-wrap: wrap; gap: 6px; }
+.presets button {
+  min-height: 32px; padding: 0 10px;
+  border: 1px solid var(--border); border-radius: 999px;
+  background: transparent; color: var(--muted); font-size: 12.5px;
+}
+.presets button:hover { color: var(--ink); border-color: var(--muted); }
+
+.model-list {
+  max-height: 208px; overflow-y: auto; overscroll-behavior: contain;
+  border: 1px solid var(--border); border-radius: 10px; background: var(--bg); padding: 4px;
+}
+.model-list button {
+  display: block; width: 100%; min-height: 34px; padding: 4px 10px;
+  border: 0; border-radius: 7px; background: transparent;
+  font: 13px var(--mono); text-align: left;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.model-list button:hover, .model-list button[aria-selected="true"] { background: var(--surface-2); }
+.model-list button[aria-selected="true"] { color: var(--accent); }
+.model-list .empty { padding: 10px; font-size: 13px; color: var(--muted); }
+
+/* Диалог */
+.dialog {
+  width: min(560px, calc(100vw - 24px));
+  max-height: calc(100dvh - 24px);
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.dialog::backdrop { background: rgba(8, 7, 6, .78); }
+.dialog[open] { animation: pop .18s ease-out; }
+/* Четыре строки: шапка, вкладки, прокручиваемая область, подвал.
+   Раньше строка для .tabs была пропущена, и панели получали нулевую высоту. */
+.dialog-form { display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; max-height: calc(100dvh - 26px); }
+.dialog-head { display: flex; align-items: center; justify-content: space-between; padding: 12px 12px 12px 22px; border-bottom: 1px solid var(--border); }
+.dialog-head h2 { margin: 0; font-size: 18px; font-weight: 600; }
+.dialog-body {
+  display: grid; gap: 18px; min-height: 0; padding: 20px 22px;
+  overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
+}
+.dialog-foot { display: flex; align-items: center; gap: 8px; padding: 12px 22px; border-top: 1px solid var(--border); }
+.test { flex: 1; min-width: 0; font-size: 13px; color: var(--muted); }
+.test.ok { color: var(--ok); }
+.test.err { color: var(--danger); }
+
+.toast {
+  position: fixed; left: 50%; bottom: 24px; z-index: 50;
+  max-width: calc(100vw - 32px);
+  padding: 10px 16px; border-radius: 10px;
+  background: var(--ink); color: var(--bg); font-size: 14px;
+  transform: translate(-50%, 20px); opacity: 0; pointer-events: none;
+  transition: opacity .2s, transform .2s;
+}
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+@keyframes pop { from { opacity: 0; transform: translateY(8px) scale(.985); } }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
+@media (max-width: 520px) {
+  .dialog { width: calc(100vw - 16px); max-height: calc(100dvh - 16px); border-radius: 16px; }
+  .dialog-form { max-height: calc(100dvh - 18px); }
+  .dialog-head { padding-inline: 16px 10px; }
+  .dialog-foot { flex-wrap: wrap; }
+  .test { flex-basis: 100%; }
+  .dialog-foot .btn { flex: 1; }
+  .dialog-body { padding: 18px 16px; }
+}
+
+/* Вкладки настроек */
+.tabs { display: flex; gap: 2px; padding: 0 22px; border-bottom: 1px solid var(--border); }
+.tabs button {
+  position: relative; min-height: 42px; padding: 0 12px;
+  border: 0; background: transparent; color: var(--muted);
+  font-size: 13.5px; font-weight: 500;
+}
+.tabs button:hover { color: var(--ink); }
+.tabs button[aria-selected="true"] { color: var(--ink); }
+.tabs button[aria-selected="true"]::after {
+  content: ''; position: absolute; left: 12px; right: 12px; bottom: -1px;
+  height: 2px; border-radius: 2px; background: var(--accent);
+}
+
+/* Выбор темы */
+.themes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.themes button {
+  display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto auto;
+  column-gap: 10px; row-gap: 1px; align-items: center;
+  padding: 10px 12px; text-align: left;
+  border: 1px solid var(--border); border-radius: 12px; background: var(--bg);
+  transition: border-color .15s, background .15s;
+}
+.themes button:hover { border-color: var(--muted); }
+.themes button[aria-checked="true"] { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--bg)); }
+.themes .sw {
+  grid-row: 1 / span 2; width: 26px; height: 26px; border-radius: 8px;
+  border: 1px solid rgba(128, 128, 128, .35);
+}
+.themes b { font-size: 13.5px; font-weight: 600; }
+.themes i { font-style: normal; font-size: 11.5px; color: var(--muted); }
+.sw-dark { background: linear-gradient(135deg, #1f1d1b 50%, #e8a15c 50%); }
+.sw-black { background: linear-gradient(135deg, #161618 50%, #7ba2ff 50%); }
+.sw-oled { background: linear-gradient(135deg, #000 50%, #63e6be 50%); }
+.sw-light { background: linear-gradient(135deg, #fff 50%, #a85a14 50%); }
+
+/* Чекбокс */
+.check { display: flex; align-items: center; gap: 10px; min-height: 32px; font-size: 14px; cursor: pointer; }
+.check input { width: 18px; height: 18px; accent-color: var(--accent); flex: none; }
+
+/* Телефоны: настройки на всю ширину, сегменты и поля в столбик,
+   темы — одной колонкой, чтобы карточки не сжимались. */
+@media (max-width: 520px) {
+  .tabs { padding-inline: 12px; }
+  .tabs button { flex: 1; padding-inline: 8px; }
+  .seg { flex-wrap: wrap; }
+  .seg button { flex: 1 1 0; min-width: 0; min-height: 44px; padding: 6px 4px; white-space: normal; font-size: 12px; line-height: 1.25; }
+  .with-btn { grid-template-columns: minmax(0, 1fr); }
+  .with-btn .btn { justify-self: stretch; }
+  .themes { grid-template-columns: 1fr; }
+  .presets button { min-height: 38px; }
+  .model-list { max-height: 46vh; }
+  .field > label { flex-wrap: wrap; }
+}

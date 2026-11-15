@@ -1,0 +1,66 @@
+name: Android APK
+
+on:
+  push:
+    branches: [main, master]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-android:
+    name: Build arm64-v8a APK
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android NDK
+        run: sdkmanager "ndk;27.2.12479018" "build-tools;35.0.0" "platforms;android-35"
+
+      - name: Install cargo-apk2
+        run: cargo install cargo-apk2 --version 1.5.0 --locked
+
+      - name: Build signed APK
+        run: cargo apk2 build --release --target aarch64-linux-android --lib
+
+      - name: Locate APK and verify signature
+        shell: bash
+        run: |
+          APK="$(find target -type f -name '*.apk' -print -quit)"
+          test -n "$APK"
+          mkdir -p dist
+          cp "$APK" dist/CustomAI-arm64-v8a.apk
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose dist/CustomAI-arm64-v8a.apk
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: CustomAI-Android-arm64-v8a
+          path: dist/CustomAI-arm64-v8a.apk
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/CustomAI-arm64-v8a.apk
+          generate_release_notes: true

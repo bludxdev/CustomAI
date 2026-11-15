@@ -1,0 +1,11 @@
+/target/
+/build/
+/dist/
+*.apk
+*.aab
+*.keystore
+*.jks
+*.pass
+/siteai.json
+/customai.json
+/local.properties

@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SiteAI — чат с нейросетью</title>
+<link rel="stylesheet" href="fonts/fonts.css">
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/chat.css">
+</head>
+<body>
+<div class="app" id="app">
+  <aside class="side" id="side">
+    <div class="brand">Site<em>AI</em></div>
+    <button class="btn btn-new" id="newChat" type="button">Новый чат</button>
+    <div class="side-label">Чаты</div>
+    <nav class="chats" id="chatList" aria-label="Список чатов"></nav>
+    <div class="side-foot">
+      <div class="mode" id="mode" title="Способ отправки запросов"><i></i><span>проверка…</span></div>
+      <button class="btn btn-ghost" id="openSettings" type="button">Настройки</button>
+    </div>
+  </aside>
+  <div class="scrim" id="scrim"></div>
+
+  <main class="main">
+    <header class="top">
+      <button class="icon-btn menu-btn" id="menuBtn" type="button" aria-label="Открыть список чатов">
+        <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M2 5h14M2 9h14M2 13h14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+      </button>
+      <h1 class="title" id="chatTitle">Новый чат</h1>
+      <button class="chip" id="modelChip" type="button" title="Настроить подключение"></button>
+    </header>
+
+    <div class="messages" id="messages" aria-live="polite"></div>
+
+    <form class="composer" id="composer">
+      <div class="composer-box">
+        <textarea id="input" rows="1" placeholder="Напишите сообщение…" aria-label="Сообщение"></textarea>
+        <button class="send" id="send" type="submit" aria-label="Отправить">
+          <svg class="i-send" width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M9 14.5v-11M4.5 8 9 3.5 13.5 8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <svg class="i-stop" width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><rect x="5" y="5" width="8" height="8" rx="1.5" fill="currentColor"/></svg>
+        </button>
+      </div>
+      <div class="composer-foot">
+        <span class="speed" id="speed" aria-hidden="true"><b>0.0</b>&nbsp;ток/с</span>
+        <p class="hint">Enter — отправить, Shift+Enter — новая строка</p>
+      </div>
+    </form>
+  </main>
+</div>
+
+<dialog class="dialog" id="settings" aria-labelledby="settingsTitle">
+  <form method="dialog" class="dialog-form" id="settingsForm">
+    <header class="dialog-head">
+      <h2 id="settingsTitle">Настройки</h2>
+      <button class="icon-btn" type="button" id="closeSettings" aria-label="Закрыть">
+        <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 3l10 10M13 3 3 13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+      </button>
+    </header>
+
+    <div class="tabs" id="settingsTabs" role="tablist" aria-label="Разделы настроек">
+      <button type="button" role="tab" data-tab="conn" aria-selected="true" aria-controls="tabConn">Подключение</button>
+      <button type="button" role="tab" data-tab="look" aria-selected="false" aria-controls="tabLook">Оформление</button>
+    </div>
+
+    <div class="dialog-body" id="tabConn" role="tabpanel">
+      <div class="field">
+        <label for="apiType">Тип API</label>
+        <div class="seg" id="apiType" role="radiogroup" aria-label="Тип API">
+          <button type="button" role="radio" data-type="openai">OpenAI-совместимый</button>
+          <button type="button" role="radio" data-type="anthropic">Anthropic</button>
+          <button type="button" role="radio" data-type="gemini">Gemini</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="endpoint">Endpoint</label>
+        <input class="mono" id="endpoint" type="url" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://api.example.com/v1">
+        <div class="presets" id="presets"></div>
+      </div>
+
+      <div class="field">
+        <label for="apiKey">API key</label>
+        <div class="with-btn">
+          <input class="mono" id="apiKey" type="password" autocomplete="off" spellcheck="false" placeholder="sk-…">
+          <button class="btn btn-ghost" type="button" id="toggleKey">Показать</button>
+        </div>
+        <p class="note">Ключ хранится только в этом браузере (localStorage) и уходит лишь на указанный endpoint.</p>
+      </div>
+
+      <div class="field">
+        <label for="model">Модель</label>
+        <div class="with-btn">
+          <input class="mono" id="model" type="text" autocomplete="off" spellcheck="false" placeholder="id модели или поиск по списку">
+          <button class="btn btn-ghost" type="button" id="fetchModels">Загрузить список</button>
+        </div>
+        <div class="model-list" id="modelList" role="listbox" aria-label="Модели" hidden></div>
+        <p class="note" id="modelNote"></p>
+      </div>
+
+      <div class="field">
+        <label for="system">Системный промпт <span class="opt">необязательно</span></label>
+        <textarea id="system" rows="3" placeholder="Например: отвечай кратко и по-русски"></textarea>
+      </div>
+
+      <div class="field">
+        <label for="temp">Temperature <output id="tempOut" for="temp"></output></label>
+        <input id="temp" type="range" min="0" max="2" step="0.1">
+      </div>
+    </div>
+
+    <div class="dialog-body" id="tabLook" role="tabpanel" hidden>
+      <div class="field">
+        <label>Тема</label>
+        <div class="themes" id="themes" role="radiogroup" aria-label="Тема оформления">
+          <button type="button" role="radio" data-theme="dark">
+            <span class="sw sw-dark"></span><b>Тёплая тёмная</b><i>как сейчас</i>
+          </button>
+          <button type="button" role="radio" data-theme="black">
+            <span class="sw sw-black"></span><b>Black</b><i>почти чёрный</i>
+          </button>
+          <button type="button" role="radio" data-theme="oled">
+            <span class="sw sw-oled"></span><b>OLED</b><i>чистый чёрный</i>
+          </button>
+          <button type="button" role="radio" data-theme="light">
+            <span class="sw sw-light"></span><b>Белая</b><i>светлая</i>
+          </button>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Генерация</label>
+        <label class="check"><input type="checkbox" id="showSpeed"><span>Показывать скорость генерации (токенов в секунду)</span></label>
+      </div>
+
+      <p class="note">Нейросеть умеет задавать вопросы с выбором ответа и рисовать таблицы — просто попросите. Кнопки выбора появляются прямо в ответе.</p>
+    </div>
+
+    <footer class="dialog-foot">
+      <span class="test" id="testResult" role="status"></span>
+      <button class="btn btn-ghost" type="button" id="testBtn">Проверить</button>
+      <button class="btn btn-primary" type="submit" id="saveBtn">Сохранить</button>
+    </footer>
+  </form>
+</dialog>
+
+<div class="toast" id="toast" role="status"></div>
+
+<script src="js/api.js"></script>
+<script src="js/render.js"></script>
+<script src="js/store.js"></script>
+<script src="js/settings.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
